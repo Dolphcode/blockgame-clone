@@ -6,6 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>;
 #include <stb_image.h>
 
+
 // Temporarily
 const char* vertShader{
 	"#version 460 core\n"
@@ -349,6 +350,8 @@ int main() {
 
 		glm::vec3 predictedPos {player.position + player.velocity};
 		bool grounded = false;
+
+		#ifdef SMALL_DEBUG
 		for (int i = 0; i < sizeof(blocks) / sizeof(glm::vec3); i++) { // Collision detection
 			int isOnBlock = (predictedPos.x - player.width > blocks[i].x && predictedPos.z - player.depth > blocks[i].z) ||
 				(predictedPos.x + player.width < blocks[i].x && predictedPos.z - player.depth > blocks[i].z) ||
@@ -360,8 +363,30 @@ int main() {
 				grounded = true;
 			}
 		}
+		#endif
+
+		#ifndef SMALL_DEBUG
+		for (int x = -20; x < 20; x++) {
+			for (int z = -20; z < 20; z++) {
+				int isOnBlock = (predictedPos.x - (player.width / 2) > x - 0.5 && predictedPos.x - (player.width / 2) < x + 0.5 && predictedPos.z - (player.depth / 2) > z - 0.5 && predictedPos.z - (player.depth / 2) < z + 0.5) ||
+					(predictedPos.x - (player.width / 2) > x - 0.5 && predictedPos.x - (player.width / 2) < x + 0.5 && predictedPos.z - (player.depth / 2) > z + 0.5 && predictedPos.z + (player.depth / 2) < z + 0.5) ||
+					(predictedPos.x + (player.width / 2) > x - 0.5 && predictedPos.x + (player.width / 2) < x + 0.5 && predictedPos.z - (player.depth / 2) > z + 0.5 && predictedPos.z + (player.depth / 2) < z + 0.5) ||
+					(predictedPos.x + (player.width / 2) > x - 0.5 && predictedPos.x + (player.width / 2) < x + 0.5 && predictedPos.z - (player.depth / 2) > z - 0.5 && predictedPos.z - (player.depth / 2) < z + 0.5);
+				if (predictedPos.y < 0.5f && isOnBlock) {
+					predictedPos.y = 0.5f;
+					player.velocity.y = 0;
+					grounded = true;
+					std::cout << x << " " << z << " Player Corners " << predictedPos.x - (player.width / 2) << " " << predictedPos.z - (player.depth / 2) << ", ";
+				}
+			}
+		}
+		std::cout << std::endl;
+		#endif		
+
+
 		player.position = predictedPos;
 
+		#ifdef SMALL_DEBUG
 		for (int i = 0; i < sizeof(blocks) / sizeof(glm::vec3); i++) {
 			glm::mat4 model { glm::mat4(1.0f) };
 			model = glm::translate(model, blocks[i]);
@@ -381,6 +406,32 @@ int main() {
 			glBindVertexArray(VAO);
 			glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 		}
+		#endif
+
+		#ifndef SMALL_DEBUG
+		for (int x = -20; x < 20; x++) {
+			for (int z = -20; z < 20; z++) {
+				glm::mat4 model { glm::mat4(1.0f) };
+				model = glm::translate(model, glm::vec3(x, 0.0f, z));
+
+				glm::vec3 eyePos {player.position + player.eyeOffset};
+				glm::mat4 view { glm::lookAt(eyePos, player.forwardDir + eyePos, player.upDir) };
+				//view = glm::translate(view, blocks[i]);
+
+				glm::mat4 projection { glm::perspective(45.0f, 800.0f / 600.0f, 0.1f, 100.0f) };
+
+				glm::mat4 transform = projection * view * model;
+
+
+				glUniform1i(glGetUniformLocation(program, "tex"), 0);
+				glUniformMatrix4fv(glGetUniformLocation(program, "transform"), 1, GL_FALSE, &transform[0][0]);
+
+				glBindVertexArray(VAO);
+				glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+			}
+		}
+		#endif
+		
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
